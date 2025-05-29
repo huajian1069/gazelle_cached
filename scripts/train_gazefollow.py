@@ -23,7 +23,7 @@ parser.add_argument('--batch_size', type=int, default=60)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--n_workers', type=int, default=8)
 args = parser.parse_args()
-
+os.makedirs("caches", exist_ok=True)
 
 def main():
     wandb.init(
@@ -57,10 +57,10 @@ def main():
         # TRAIN EPOCH
         model.train()
         for cur_iter, batch in enumerate(train_dl):
-            imgs, bboxes, gazex, gazey, inout, heights, widths, heatmaps = batch
+            imgs, bboxes, gazex, gazey, inout, heights, widths, heatmaps, path = batch
 
             optimizer.zero_grad()
-            preds = model({"images": imgs.cuda(), "bboxes": [[bbox] for bbox in bboxes]})
+            preds = model({"images": imgs.cuda(), "bboxes": [[bbox] for bbox in bboxes], "path": path})
             heatmap_preds = torch.stack(preds['heatmap']).squeeze(dim=1)
 
             loss = loss_fn(heatmap_preds, heatmaps.cuda())
@@ -84,10 +84,10 @@ def main():
         min_l2s = []
         aucs = []
         for cur_iter, batch in enumerate(eval_dl):
-            imgs, bboxes, gazex, gazey, inout, heights, widths = batch
+            imgs, bboxes, gazex, gazey, inout, heights, widths, path = batch
 
             with torch.no_grad():
-                preds = model({"images": imgs.cuda(), "bboxes": [[bbox] for bbox in bboxes]})
+                preds = model({"images": imgs.cuda(), "bboxes": [[bbox] for bbox in bboxes], "path": path})
 
             heatmap_preds = torch.stack(preds['heatmap']).squeeze(dim=1)
             for i in range(heatmap_preds.shape[0]):

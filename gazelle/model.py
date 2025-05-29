@@ -45,12 +45,33 @@ class GazeLLE(nn.Module):
                 nn.Sigmoid()
             )
 
+
+    def get_cached_features(self, tensor, img_path):
+        """
+        for gazefollow dataset, it requires 500 GBytes disk space to store image caches when using 448 x 448 input resolutions
+        """
+        img_path = "_".join(img_path.split("/"))
+        cache_file = f"caches/{os.path.basename(img_path)}.pt"
+        if os.path.exists(cache_file):
+            return torch.load(cache_file)
+        # else compute and save
+        with torch.no_grad():
+            feats = self.backbone(tensor)
+        torch.save(feats, cache_file)
+        return feats
+
+
     def forward(self, input):
         # input["images"]: [B, 3, H, W] tensor of images
         # input["bboxes"]: list of lists of bbox tuples [[(xmin, ymin, xmax, ymax)]] per image in normalized image coords
 
         num_ppl_per_img = [len(bbox_list) for bbox_list in input["bboxes"]]
-        x = self.backbone.forward(input["images"])
+        #x = self.backbone.forward(input["images"])
+        ls_x = []
+        for b in range(input["images"].shape[0]):
+            ls_x.append(self.get_cached_features(input["images"][b:b+1], input["path"][b]))
+        x = torch.cat(ls_x, dim=0) # b x 1024 x 32 x 32
+
         x = self.linear(x)
         x = x + self.pos_embed
         x = utils.repeat_tensors(x, num_ppl_per_img) # repeat image features along people dimension per image
