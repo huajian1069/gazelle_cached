@@ -3,6 +3,7 @@ import torch.nn as nn
 import torchvision
 from timm.models.vision_transformer import Block
 import math
+import os
 
 import gazelle.utils as utils
 from gazelle.backbone import DinoV2Backbone
